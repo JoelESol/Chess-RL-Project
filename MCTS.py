@@ -10,6 +10,8 @@ import torch.multiprocessing as mp
 from alpha_net import ChessNet
 import datetime
 import chess
+import json
+import random
 
 
 class UCTNode():
@@ -101,9 +103,9 @@ class UCTNode():
         current = self
         while current.parent is not None:
             current.number_visits += 1
-            if current.board.turn == chess.WHITE:
+            if current.board.turn == chess.BLACK:
                 current.total_value += (1 * value_estimate)
-            elif current.board.turn == chess.BLACK:
+            elif current.board.turn == chess.WHITE:
                 current.total_value += (-1 * value_estimate)
             current = current.parent
 
@@ -158,15 +160,22 @@ def load_pickle(filename):
 
 
 def MCTS_self_play(chessnet, num_games, cpu):
+    openings={}
+    with open('opening_books/opening_fens.json', 'r') as openfile:
+        openings = json.load(openfile)
+
     for idxx in range(0, num_games):
         board = chess.Board()
+        fen=random.choice(list(openings.values()))
+        print(fen)
+        board.set_fen(fen)
         dataset = []
         states = []
         value = 0
         while not board.is_game_over():
             states.append(board)
             board_state = ed.encode_board(board)
-            best_move, root = UCT_search(board, 5, chessnet)
+            best_move, root = UCT_search(board, 150, chessnet)
             move = do_decode_n_move_pieces(board, best_move)
             board.push(move)
             policy = get_policy(root)
