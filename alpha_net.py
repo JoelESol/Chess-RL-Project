@@ -5,7 +5,7 @@ import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
 import os
 import datetime
-import matplotlib as plt
+import matplotlib.pyplot as plt
 import os
 
 class board_data(Dataset):
@@ -17,7 +17,7 @@ class board_data(Dataset):
         return len(self.x)
 
     def __getitem__(self, item):
-        return self.x[item], self.y_v[item], self.y_v[item]
+        return self.x[item].transpose(2,0,1), self.y_p[item], self.y_v[item]
 
 class ChessNet(nn.Module):
     def __init__(self):
@@ -130,7 +130,7 @@ class ChessNet(nn.Module):
         p=self.policy_conv(f)
         p=p.view(-1, 8192)
         p=self.policy_linear(p)
-        p=F.log_softmax(p, dim=1)
+        p=F.log_softmax(p).exp()
         return p, v
 
 class AlphaLoss(torch.nn.Module):
@@ -139,7 +139,8 @@ class AlphaLoss(torch.nn.Module):
 
     def forward(self, y_value, value, y_policy, policy):
         value_error = (value-y_value) **2
-        policy_error = torch.sum((-policy*(1e-6 +y_policy.float()).float().log()), 1)
+        policy_error = torch.sum((-policy*
+                                  (1e-6 +y_policy.float()).float().log()), 1)
         total_error = (value_error.view(-1).float() +policy_error).mean()
         return total_error
 
@@ -175,13 +176,15 @@ def train(net, dataset, epoch_start = 0, epoch_stop = 20, cpu=0):
                 print("Value:", value[0].item(), value_pred[0, 0].item())
                 losses_per_batch.append(total_loss / 10)
                 total_loss = 0.0
-            losses_per_epoch.append(sum(losses_per_batch) / len(losses_per_batch))
-            if len(losses_per_epoch) > 100:
-                if abs(sum(losses_per_epoch[-4:-1]) / 3 - sum(losses_per_epoch[-16:-13]) / 3) <= 0.01:
-                    break
+        losses_per_epoch.append(sum(losses_per_batch) / len(losses_per_batch))
+        if len(losses_per_epoch) > 100:
+            if abs(sum(losses_per_epoch[-4:-1]) / 3 - sum(losses_per_epoch[-16:-13]) / 3) <= 0.01:
+                break
 
         fig = plt.figure()
         ax = fig.add_subplot(222)
+        print(losses_per_epoch)
+        print([e for e in range(1, epoch_stop + 1, 1)])
         ax.scatter([e for e in range(1, epoch_stop + 1, 1)], losses_per_epoch)
         ax.set_xlabel("Epoch")
         ax.set_ylabel("Loss per batch")

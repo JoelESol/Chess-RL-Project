@@ -147,7 +147,7 @@ def get_policy(root):
 
 
 def save_as_pickle(filename, data):
-    completeName = os.path.join("./datasets/iter0/", filename)
+    completeName = os.path.join("./datasets/iter1/", filename)
     with open(completeName, 'wb') as output:
         pickle.dump(data, output)
 
@@ -172,20 +172,23 @@ def MCTS_self_play(chessnet, num_games, cpu):
         dataset = []
         states = []
         value = 0
-        while not board.is_game_over():
-            states.append(board)
-            board_state = ed.encode_board(board)
-            best_move, root = UCT_search(board, 150, chessnet)
+        while not board.is_game_over() and board.fullmove_number<125:
+            states.append(copy.deepcopy(board))
+            board_state = copy.deepcopy(ed.encode_board(board))
+            best_move, root = UCT_search(board, 10, chessnet)
             move = do_decode_n_move_pieces(board, best_move)
             board.push(move)
             policy = get_policy(root)
             dataset.append([board_state, policy])
             print(board, board.fullmove_number)
             if board.is_checkmate():
+                print("checkmate")
                 if board.result() == "1-0":
                     value = (1 + 0.2 * ((100 - board.fullmove_number) / 100) / 1.2)
+                    print("white wins")
                 else:
                     value = (-1 - 0.2 * ((100 - board.fullmove_number) / 100) / 1.2)
+                    print("black wins")
         dataset_p = []
         for idx, data, in enumerate(dataset):
             s, p = data
@@ -212,7 +215,7 @@ if __name__ == "__main__":
     checkpoint = torch.load(current_net_filename)
     net.load_state_dict(checkpoint['state_dict'])
     processes = []
-    for i in range(2):
+    for i in range(4):
         p = mp.Process(target=MCTS_self_play, args=(net, 1, i))
         p.start()
         processes.append(p)
