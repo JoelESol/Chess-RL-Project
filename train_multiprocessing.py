@@ -6,8 +6,8 @@ import torch
 import torch.multiprocessing as mp
 
 if __name__=="__main__":
-    net_to_train="current_net.pth.tar"; save_as="current_net_trained_iter1.pth.tar"
-    data_path ="./datasets/iter1/"; model_path ="./model_data/"
+    net_to_train="current_net_mk2.pth.tar"; save_as="current_net__mk2_trained_iter1.pth.tar"
+    data_path ="./datasets/iter0/"; model_path ="./model_data/"
     datasets = []
     for idx, file in enumerate(os.listdir(data_path)):
         filename = os.path.join(data_path,file)

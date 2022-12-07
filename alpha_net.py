@@ -19,6 +19,22 @@ class board_data(Dataset):
     def __getitem__(self, item):
         return self.x[item].transpose(2,0,1), self.y_p[item], self.y_v[item]
 
+class ResidualBlock(nn.Module):
+    def __init__(self, inplanes=256, planes=256, stride=1, downsample=None):
+        super(ResidualBlock, self).__init__()
+        self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=3, stride=stride, padding=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(planes)
+        self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, stride=stride, padding=1, bias=False)
+        self.bn2 = nn.BatchNorm2d(planes)
+    def forward(self, x):
+        residual = x
+        out=self.conv1(x)
+        out=F.relu(self.bn1(out))
+        out=self.conv2(out)
+        out += residual
+        out = F.relu(out)
+        return out
+
 class ChessNet(nn.Module):
     def __init__(self):
         super().__init__()
@@ -28,73 +44,36 @@ class ChessNet(nn.Module):
             nn.BatchNorm2d(256),
             nn.ReLU(),
 
-            nn.Conv2d(256, 256, 3, stride=1, padding=1),
-            nn.BatchNorm2d(256),
-            nn.ReLU(),
-
-            nn.Conv2d(256, 256, 3, stride=1, padding=1),
-            nn.BatchNorm2d(256),
-            nn.ReLU(),
-
-            nn.Conv2d(256, 256, 3, stride=1, padding=1),
-            nn.BatchNorm2d(256),
-            nn.ReLU(),
-
-            nn.Conv2d(256, 256, 3, stride=1, padding=1),
-            nn.BatchNorm2d(256),
-            nn.ReLU(),
-
-            nn.Conv2d(256, 256, 3, stride=1, padding=1),
-            nn.BatchNorm2d(256),
-            nn.ReLU(),
-
-            nn.Conv2d(256, 256, 3, stride=1, padding=1),
-            nn.BatchNorm2d(256),
-            nn.ReLU(),
-
-            nn.Conv2d(256, 256, 3, stride=1, padding=1),
-            nn.BatchNorm2d(256),
-            nn.ReLU(),
-
-            nn.Conv2d(256, 256, 3, stride=1, padding=1),
-            nn.BatchNorm2d(256),
-            nn.ReLU(),
-
-            nn.Conv2d(256, 256, 3, stride=1, padding=1),
-            nn.BatchNorm2d(256),
-            nn.ReLU(),
-
-            nn.Conv2d(256, 256, 3, stride=1, padding=1),
-            nn.BatchNorm2d(256),
-            nn.ReLU(),
-
-            nn.Conv2d(256, 256, 3, stride=1, padding=1),
-            nn.BatchNorm2d(256),
-            nn.ReLU(),
-
-            nn.Conv2d(256, 256, 3, stride=1, padding=1),
-            nn.BatchNorm2d(256),
-            nn.ReLU(),
-
-            nn.Conv2d(256, 256, 3, stride=1, padding=1),
-            nn.BatchNorm2d(256),
-            nn.ReLU(),
-
-            nn.Conv2d(256, 256, 3, stride=1, padding=1),
-            nn.BatchNorm2d(256),
-            nn.ReLU(),
-
-            nn.Conv2d(256, 256, 3, stride=1, padding=1),
-            nn.BatchNorm2d(256),
-            nn.ReLU(),
-
-            nn.Conv2d(256, 256, 3, stride=1, padding=1),
-            nn.BatchNorm2d(256),
-            nn.ReLU(),
-
-            nn.Conv2d(256, 256, 3, stride=1, padding=1),
-            nn.BatchNorm2d(256),
-            nn.ReLU(),
+            ResidualBlock(),
+            ResidualBlock(),
+            ResidualBlock(),
+            ResidualBlock(),
+            ResidualBlock(),
+            ResidualBlock(),
+            ResidualBlock(),
+            ResidualBlock(),
+            ResidualBlock(),
+            ResidualBlock(),
+            ResidualBlock(),
+            ResidualBlock(),
+            ResidualBlock(),
+            ResidualBlock(),
+            ResidualBlock(),
+            ResidualBlock(),
+            ResidualBlock(),
+            ResidualBlock(),
+            ResidualBlock(),
+            ResidualBlock(),
+            ResidualBlock(),
+            ResidualBlock(),
+            ResidualBlock(),
+            ResidualBlock(),
+            ResidualBlock(),
+            ResidualBlock(),
+            ResidualBlock(),
+            ResidualBlock(),
+            ResidualBlock(),
+            ResidualBlock()
         )
         self.policy_conv = nn.Sequential(
             nn.Conv2d(256, 128, kernel_size=1),
@@ -125,12 +104,12 @@ class ChessNet(nn.Module):
         v=self.value_conv(f)
         v=v.view(-1, 64)
         v=self.value_linear(v)
-        v=F.tanh(v)
+        v=torch.tanh(v)
 
         p=self.policy_conv(f)
         p=p.view(-1, 8192)
         p=self.policy_linear(p)
-        p=F.log_softmax(p).exp()
+        p=F.log_softmax(p,dim=1).exp()
         return p, v
 
 class AlphaLoss(torch.nn.Module):
@@ -181,14 +160,14 @@ def train(net, dataset, epoch_start = 0, epoch_stop = 20, cpu=0):
             if abs(sum(losses_per_epoch[-4:-1]) / 3 - sum(losses_per_epoch[-16:-13]) / 3) <= 0.01:
                 break
 
-        fig = plt.figure()
-        ax = fig.add_subplot(222)
-        print(losses_per_epoch)
-        print([e for e in range(1, epoch_stop + 1, 1)])
-        ax.scatter([e for e in range(1, epoch_stop + 1, 1)], losses_per_epoch)
-        ax.set_xlabel("Epoch")
-        ax.set_ylabel("Loss per batch")
-        ax.set_title("Loss vs Epoch")
-        print('Finished Training')
-        plt.savefig(
-            os.path.join("./model_data/", "Loss_vs_Epoch_%s.png" % datetime.datetime.today().strftime("%Y-%m-%d")))
+    fig = plt.figure()
+    ax = fig.add_subplot(222)
+    print(losses_per_epoch)
+    print([e for e in range(1, epoch_stop + 1, 1)])
+    ax.scatter([e for e in range(1, epoch_stop + 1, 1)], losses_per_epoch)
+    ax.set_xlabel("Epoch")
+    ax.set_ylabel("Loss per batch")
+    ax.set_title("Loss vs Epoch")
+    print('Finished Training')
+    plt.savefig(
+        os.path.join("./model_data/", "Loss_vs_Epoch_%s.png" % datetime.datetime.today().strftime("%Y-%m-%d")))

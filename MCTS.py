@@ -202,7 +202,7 @@ def MCTS_self_play(chessnet, num_games, cpu):
 
 if __name__ == "__main__":
 
-    net_to_play = "current_net.pth.tar"
+    net_to_play = "current_net_mk2.pth.tar"
     mp.set_start_method("spawn", force=True)
     net = ChessNet()
     cuda = torch.cuda.is_available()
@@ -210,7 +210,7 @@ if __name__ == "__main__":
         net.cuda()
     net.share_memory()
     net.eval()
-    torch.save({'state_dict': net.state_dict()}, os.path.join("./model_data/", "current_net.pth.tar"))
+    torch.save({'state_dict': net.state_dict()}, os.path.join("./model_data/", "current_net_mk2.pth.tar"))
     current_net_filename = os.path.join("./model_data/", net_to_play)
     checkpoint = torch.load(current_net_filename)
     net.load_state_dict(checkpoint['state_dict'])
