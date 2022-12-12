@@ -65,7 +65,7 @@ class UCTNode():
 
     def add_dirichlet_noise(self, action_idxs, child_priors):
         valid_child_priors = child_priors[action_idxs]
-        valid_child_priors = 0.75 * valid_child_priors + 0.25 * np.random.dirichlet(
+        valid_child_priors = 0.85 * valid_child_priors + 0.15 * np.random.dirichlet(
             np.zeros([len(valid_child_priors)], dtype=np.float32) + 0.3)
         child_priors[action_idxs] = valid_child_priors
         return child_priors
@@ -147,7 +147,7 @@ def get_policy(root):
 
 
 def save_as_pickle(filename, data):
-    completeName = os.path.join("./datasets/iter1/", filename)
+    completeName = os.path.join("./datasets/iter5/", filename)
     with open(completeName, 'wb') as output:
         pickle.dump(data, output)
 
@@ -167,7 +167,7 @@ def MCTS_self_play(chessnet, num_games, cpu):
     for idxx in range(0, num_games):
         board = chess.Board()
         fen=random.choice(list(openings.values()))
-        print(fen)
+        #print(fen)
         board.set_fen(fen)
         dataset = []
         states = []
@@ -175,19 +175,19 @@ def MCTS_self_play(chessnet, num_games, cpu):
         while not board.is_game_over() and board.fullmove_number<125:
             states.append(copy.deepcopy(board))
             board_state = copy.deepcopy(ed.encode_board(board))
-            best_move, root = UCT_search(board, 10, chessnet)
+            best_move, root = UCT_search(board, 400, chessnet)
             move = do_decode_n_move_pieces(board, best_move)
             board.push(move)
             policy = get_policy(root)
             dataset.append([board_state, policy])
-            print(board, board.fullmove_number)
+            #print(board, board.fullmove_number)
             if board.is_checkmate():
                 print("checkmate")
                 if board.result() == "1-0":
-                    value = (1 + 0.2 * ((100 - board.fullmove_number) / 100) / 1.2)
+                    value = (1 + 0.2 * (100 - board.fullmove_number) / 100) / 1.2
                     print("white wins")
                 else:
-                    value = (-1 - 0.2 * ((100 - board.fullmove_number) / 100) / 1.2)
+                    value = (-1 - 0.2 * (100 - board.fullmove_number) / 100) / 1.2
                     print("black wins")
         dataset_p = []
         for idx, data, in enumerate(dataset):
@@ -202,7 +202,7 @@ def MCTS_self_play(chessnet, num_games, cpu):
 
 if __name__ == "__main__":
 
-    net_to_play = "current_net_mk2.pth.tar"
+    net_to_play = "current_net_trained_iter0.pth.tar"
     mp.set_start_method("spawn", force=True)
     net = ChessNet()
     cuda = torch.cuda.is_available()
@@ -210,13 +210,14 @@ if __name__ == "__main__":
         net.cuda()
     net.share_memory()
     net.eval()
-    torch.save({'state_dict': net.state_dict()}, os.path.join("./model_data/", "current_net_mk2.pth.tar"))
+    torch.save({'state_dict': net.state_dict()}, os.path.join("./model_data/", "current_net_trained_iter0.pth.tar"))
     current_net_filename = os.path.join("./model_data/", net_to_play)
+    print("saved")
     checkpoint = torch.load(current_net_filename)
     net.load_state_dict(checkpoint['state_dict'])
     processes = []
-    for i in range(4):
-        p = mp.Process(target=MCTS_self_play, args=(net, 1, i))
+    for i in range(36):
+        p = mp.Process(target=MCTS_self_play, args=(net, 20, i))
         p.start()
         processes.append(p)
     for p in processes:

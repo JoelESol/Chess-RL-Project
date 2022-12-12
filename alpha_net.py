@@ -1,3 +1,5 @@
+import time
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -17,7 +19,7 @@ class board_data(Dataset):
         return len(self.x)
 
     def __getitem__(self, item):
-        return self.x[item].transpose(2,0,1), self.y_p[item], self.y_v[item]
+        return self.x[item], self.y_p[item], self.y_v[item]
 
 class ResidualBlock(nn.Module):
     def __init__(self, inplanes=256, planes=256, stride=1, downsample=None):
@@ -43,22 +45,6 @@ class ChessNet(nn.Module):
             nn.Conv2d(13, 256, 3, stride=1, padding=1),
             nn.BatchNorm2d(256),
             nn.ReLU(),
-
-            ResidualBlock(),
-            ResidualBlock(),
-            ResidualBlock(),
-            ResidualBlock(),
-            ResidualBlock(),
-            ResidualBlock(),
-            ResidualBlock(),
-            ResidualBlock(),
-            ResidualBlock(),
-            ResidualBlock(),
-            ResidualBlock(),
-            ResidualBlock(),
-            ResidualBlock(),
-            ResidualBlock(),
-            ResidualBlock(),
             ResidualBlock(),
             ResidualBlock(),
             ResidualBlock(),
@@ -75,6 +61,7 @@ class ChessNet(nn.Module):
             ResidualBlock(),
             ResidualBlock()
         )
+
         self.policy_conv = nn.Sequential(
             nn.Conv2d(256, 128, kernel_size=1),
             nn.BatchNorm2d(128),
@@ -82,8 +69,6 @@ class ChessNet(nn.Module):
 
         self.policy_linear = nn.Sequential(
             nn.Linear(8192, 4672),
-            nn.ReLU(),
-            nn.Linear(4672, 4672)
         )
 
         self.value_conv = nn.Sequential(
@@ -104,12 +89,12 @@ class ChessNet(nn.Module):
         v=self.value_conv(f)
         v=v.view(-1, 64)
         v=self.value_linear(v)
-        v=torch.tanh(v)
+        v=F.tanh(v)
 
         p=self.policy_conv(f)
         p=p.view(-1, 8192)
         p=self.policy_linear(p)
-        p=F.log_softmax(p,dim=1).exp()
+        p=F.log_softmax(p, dim=1).exp()
         return p, v
 
 class AlphaLoss(torch.nn.Module):
@@ -162,12 +147,11 @@ def train(net, dataset, epoch_start = 0, epoch_stop = 20, cpu=0):
 
     fig = plt.figure()
     ax = fig.add_subplot(222)
-    print(losses_per_epoch)
-    print([e for e in range(1, epoch_stop + 1, 1)])
     ax.scatter([e for e in range(1, epoch_stop + 1, 1)], losses_per_epoch)
     ax.set_xlabel("Epoch")
     ax.set_ylabel("Loss per batch")
     ax.set_title("Loss vs Epoch")
     print('Finished Training')
     plt.savefig(
-        os.path.join("./model_data/", "Loss_vs_Epoch_%s.png" % datetime.datetime.today().strftime("%Y-%m-%d")))
+        os.path.join("./model_data/", "Loss_vs_Epoch_%s.png" % datetime.datetime.now().strftime("%Y-%m-%d-%H")))
+    print("Figure saved")

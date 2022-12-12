@@ -6,8 +6,8 @@ import torch
 import torch.multiprocessing as mp
 
 if __name__=="__main__":
-    net_to_train="current_net_mk2.pth.tar"; save_as="current_net__mk2_trained_iter1.pth.tar"
-    data_path ="./datasets/iter0/"; model_path ="./model_data/"
+    net_to_train="current_net_trained_iter0.pth.tar"; save_as="current_net_trained_iter1.pth.tar"
+    data_path ="./datasets/iter4/"; model_path ="./model_data/"
     datasets = []
     for idx, file in enumerate(os.listdir(data_path)):
         filename = os.path.join(data_path,file)
@@ -29,10 +29,11 @@ if __name__=="__main__":
     print("Loaded nets: Starting training")
 
     processes = []
-    for i in range(1):
-        p = mp.Process(target=train, args=(net, datasets, 0, 10, i))
+    for i in range(8):
+        p = mp.Process(target=train, args=(net, datasets, 0, 15, i))
         p.start()
         processes.append(p)
     for p in processes:
         p.join()
-    torch.save({'statedict': net.state_dict()}, os.path.join(model_path, save_as))
+    torch.save({'state_dict': net.state_dict()}, os.path.join(model_path, save_as))
+    print("Model Saved")
