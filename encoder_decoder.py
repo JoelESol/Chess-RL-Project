@@ -1,8 +1,6 @@
 import numpy as np
 import chess
-import time
 import random
-
 
 def encode_board(board):
     encoded = np.zeros([13, 8, 8]).astype(int)
@@ -33,7 +31,6 @@ def encode_action(board, move):
     final_square = move.to_square
     initial_pos = [chess.square_file(init_square), chess.square_rank(init_square)]
     final_pos = [chess.square_file(final_square), chess.square_rank(final_square)]
-    encoded = np.zeros([8, 8, 73]).astype(int)
     underpromote = move.promotion
     i, j = initial_pos;
     x, y = final_pos;
@@ -42,67 +39,28 @@ def encode_action(board, move):
     piece = piece.symbol()
     if piece in ["R", "B", "Q", "K", "P", "r", "b", "q", "k", "p"] and underpromote in [None, 5]:
         if dx != 0 and dy == 0:  # N-S idx 0-13
-            if dx < 0:
-                idx = 7 + dx
-            elif dx > 0:
-                idx = 6 + dx
-        if dx == 0 and dy != 0:  # E-W idx 14-27
-            if dy < 0:
-                idx = 21 + dy
-            elif dy > 0:
-                idx = 20 + dy
-        if dx == dy:  # NW-SE idx 28-41
-            if dx < 0:
-                idx = 35 + dx
-            if dx > 0:
-                idx = 34 + dx
-        if dx == -dy:  # NE-SW idx 42-55
-            if dx < 0:
-                idx = 49 + dx
-            if dx > 0:
-                idx = 48 + dx
-    if piece in ["n", "N"]:  # knight moves 56-63
-        if (x, y) == (i + 2, j - 1):
-            idx = 56
-        if (x, y) == (i + 2, j + 1):
-            idx = 57
-        if (x, y) == (i + 1, j - 2):
-            idx = 58
-        if (x, y) == (i - 1, j - 2):
-            idx = 59
-        if (x, y) == (i - 2, j + 1):
-            idx = 60
-        if (x, y) == (i - 2, j - 1):
-            idx = 61
-        if (x, y) == (i - 1, j + 2):
-            idx = 62
-        if (x, y) == (i + 1, j + 2):
-            idx = 63
-    if piece in ["p", "P"] and (y == 0 or y == 7) and underpromote != None:
-        if abs(dy) == 1 and dx == 0:
-            if underpromote == 4:  # ROOK
-                idx = 64
-            if underpromote == 2:  # KNIGHT
-                idx = 65
-            if underpromote == 3:  # BISHOP
-                idx = 66
-        if abs(dy) == 1 and dx == -1:
-            if underpromote == 4:  # ROOK
-                idx = 67
-            if underpromote == 2:  # KNIGHT
-                idx = 68
-            if underpromote == 3:  # BISHOP
-                idx = 69
-        if abs(dy) == 1 and dx == 1:
-            if underpromote == 4:  # ROOK
-                idx = 70
-            if underpromote == 2:  # KNIGHT
-                idx = 71
-            if underpromote == 3:  # BISHOP
-                idx = 72
-    encoded[i, j, idx] = 1
-    encoded = encoded.reshape(-1);
-    encoded = np.where(encoded == 1)[0][0]
+            idx = 7 + dx if dx < 0 else 6 + dx
+        elif dx == 0 and dy != 0:  # E-W idx 14-27
+            idx = 21 + dy if dy < 0 else 20 + dy
+        elif dx == dy:  # NW-SE idx 28-41
+            idx = 35 + dx if dx < 0 else 34 + dx
+        elif dx == -dy:  # NE-SW idx 42-55
+            idx = 49 + dx if dx < 0 else 48 + dx
+
+    elif piece in ["n", "N"]:  # knight moves 56-63
+        knight_moves = {
+            (2, -1): 56, (2, 1): 57, (1, -2): 58, (-1, -2): 59,
+            (-2, 1): 60, (-2, -1): 61, (-1, 2): 62, (1, 2): 63}
+        idx = knight_moves.get((dx, dy), -1)
+
+    elif piece in ["p", "P"] and (y == 0 or y == 7) and underpromote is not None:
+        underpromote_moves = {
+            (1, 0, 4): 64, (1, 0, 2): 65, (1, 0, 3): 66,
+            (1, -1, 4): 67, (1, -1, 2): 68, (1, -1, 3): 69,
+            (1, 1, 4): 70, (1, 1, 2): 71, (1, 1, 3): 72}
+        idx = underpromote_moves.get((abs(dy), dx, underpromote), -1)
+    encoded = (73 * 8 * i) + (73 * j) + idx
+
     return encoded
 
 

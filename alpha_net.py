@@ -22,7 +22,7 @@ class board_data(Dataset):
         return self.x[item], self.y_p[item], self.y_v[item]
 
 class ResidualBlock(nn.Module):
-    def __init__(self, inplanes=256, planes=256, stride=1, downsample=None):
+    def __init__(self, inplanes=128, planes=128, stride=1, downsample=None):
         super(ResidualBlock, self).__init__()
         self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=3, stride=stride, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(planes)
@@ -42,28 +42,14 @@ class ChessNet(nn.Module):
         super().__init__()
         self.conv = nn.Sequential(
 
-            nn.Conv2d(13, 256, 3, stride=1, padding=1),
-            nn.BatchNorm2d(256),
+            nn.Conv2d(13, 128, 3, stride=1, padding=1, bias=False),
+            nn.BatchNorm2d(128),
             nn.ReLU(),
-            ResidualBlock(),
-            ResidualBlock(),
-            ResidualBlock(),
-            ResidualBlock(),
-            ResidualBlock(),
-            ResidualBlock(),
-            ResidualBlock(),
-            ResidualBlock(),
-            ResidualBlock(),
-            ResidualBlock(),
-            ResidualBlock(),
-            ResidualBlock(),
-            ResidualBlock(),
-            ResidualBlock(),
-            ResidualBlock()
+            *[ResidualBlock() for _ in range(8)]
         )
 
         self.policy_conv = nn.Sequential(
-            nn.Conv2d(256, 128, kernel_size=1),
+            nn.Conv2d(128, 128, kernel_size=1, bias=False),
             nn.BatchNorm2d(128),
         )
 
@@ -72,7 +58,7 @@ class ChessNet(nn.Module):
         )
 
         self.value_conv = nn.Sequential(
-            nn.Conv2d(256, 1, kernel_size=1),
+            nn.Conv2d(128, 1, kernel_size=1, bias=False),
             nn.BatchNorm2d(1)
         )
 

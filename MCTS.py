@@ -13,6 +13,9 @@ import chess
 import json
 import random
 
+def softmax(x):
+    e_x = np.exp(x - np.max(x))
+    return e_x / e_x.sum()
 
 class UCTNode():
     def __init__(self, board, move, parent=None):
@@ -63,29 +66,24 @@ class UCTNode():
             current = current.maybe_add_child(bestmove)
         return current
 
-    def add_dirichlet_noise(self, action_idxs, child_priors):
-        valid_child_priors = child_priors[action_idxs]
-        valid_child_priors = 0.85 * valid_child_priors + 0.15 * np.random.dirichlet(
-            np.zeros([len(valid_child_priors)], dtype=np.float32) + 0.3)
-        child_priors[action_idxs] = valid_child_priors
-        return child_priors
-
     def expand(self, child_priors):
         self.is_expanded = True
-        action_idxs = [];
-        c_p = child_priors
-        for action in list(self.board.legal_moves):
-            if action != []:
-                action_idxs.append(ed.encode_action(self.board, action))
-        if action_idxs == []:
+        legal_moves = list(self.board.legal_moves)
+        action_idxs = [ed.encode_action(self.board, action) for action in legal_moves]
+
+        if not action_idxs:
             self.is_expanded = False
+            return
+        #set child_priors all to zero
         self.action_idxes = action_idxs
-        for i in range(len(child_priors)):  # mask all illegal actions
-            if i not in action_idxs:
-                c_p[i] = 0.0000000
-        if self.parent.parent == None:  # add dirichlet noise to child priors in root node
-            c_p = self.add_dirichlet_noise(action_idxs, c_p)
-        self.child_priors = c_p
+
+        valid_child_priors = child_priors[action_idxs]
+        valid_child_priors = softmax(valid_child_priors)
+        valid_child_priors *= 0.85  # Element-wise multiplication is faster than scalar multiplication
+        valid_child_priors += 0.15 * np.random.dirichlet(np.full(len(valid_child_priors), 0.3, dtype=np.float32))
+        child_priors = child_priors*0
+        child_priors[action_idxs] = valid_child_priors
+        self.child_priors = child_priors
 
     def decode_n_move_pieces(self, board, enmove):
         move = ed.decode_action(board, enmove)
@@ -117,15 +115,20 @@ class DummyNode(object):
         self.child_number_visits = collections.defaultdict(float)
 
 
+
 def UCT_search(game_state, num_reads, net):
     root = UCTNode(game_state, move=None, parent=DummyNode())
     for i in range(num_reads):
         leaf = root.select_leaf()
+
         encoded_s = ed.encode_board(leaf.board)
         encoded_s = torch.from_numpy(encoded_s).float().cuda()
+
         child_priors, value_estimate = net(encoded_s)
+
         child_priors = child_priors.detach().cpu().numpy().reshape(-1);
         value_estimate = value_estimate.item()
+
         if leaf.board.is_game_over():
             leaf.backup(value_estimate);
             continue
@@ -159,7 +162,7 @@ def load_pickle(filename):
     return data
 
 
-def MCTS_self_play(chessnet, num_games, cpu):
+def MCTS_self_play(chessnet, num_moves, num_games, cpu):
     openings={}
     with open('opening_books/opening_fens.json', 'r') as openfile:
         openings = json.load(openfile)
@@ -175,7 +178,7 @@ def MCTS_self_play(chessnet, num_games, cpu):
         while not board.is_game_over() and board.fullmove_number<125:
             states.append(copy.deepcopy(board))
             board_state = copy.deepcopy(ed.encode_board(board))
-            best_move, root = UCT_search(board, 400, chessnet)
+            best_move, root = UCT_search(board, num_moves, chessnet)
             move = do_decode_n_move_pieces(board, best_move)
             board.push(move)
             policy = get_policy(root)

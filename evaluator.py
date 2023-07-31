@@ -78,7 +78,7 @@ def fork_process(arena_obj, num_games, cpu):  # make arena picklable
 
 if __name__ == "__main__":
     mp.set_start_method("spawn", force=True)
-    current_net = "current_net.pth.tar";
+    current_net = "current_net_trained_iter9.pth.tar";
     best_net = "current_net_trained_iter9.pth.tar"
     current_net_filename = os.path.join("./resmodels/", \
                                         current_net)
